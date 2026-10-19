@@ -30,10 +30,12 @@ export const useMagnetometer = () => {
   const [magnitud, setMagnitud] = useState(null);
   const [lineaBase, setLineaBase] = useState(null);
   const [calibrando, setCalibrando] = useState(false);
+  const [estado, setEstado] = useState('inactivo');
 
   const sensorRef = useRef(null);
   const baselineReadingsRef = useRef([]);
   const suavizadoRef = useRef(null);
+  const estadoRef = useRef('inactivo');
 
   // Reiniciar calibración (la línea base se toma de las próximas lecturas)
   const recalibrar = useCallback(() => {
@@ -59,6 +61,7 @@ export const useMagnetometer = () => {
   const iniciar = useCallback(() => {
     if (typeof window === 'undefined' || !('Magnetometer' in window)) {
       setSoportado(false);
+      setEstado('no-soportado');
       return;
     }
     if (sensorRef.current) return;
@@ -69,6 +72,11 @@ export const useMagnetometer = () => {
       sensor.onreading = () => {
         const m = Math.sqrt(sensor.x ** 2 + sensor.y ** 2 + sensor.z ** 2);
         if (!Number.isFinite(m)) return;
+
+        if (estadoRef.current !== 'leyendo') {
+          estadoRef.current = 'leyendo';
+          setEstado('leyendo');
+        }
 
         // Suavizado exponencial para evitar parpadeos
         suavizadoRef.current = suavizadoRef.current == null
@@ -92,16 +100,22 @@ export const useMagnetometer = () => {
         console.warn('Magnetómetro no disponible:', event.error);
         setSoportado(false);
         setCalibrando(false);
+        estadoRef.current = 'error';
+        setEstado(`error:${event.error?.name || 'desconocido'}`);
       };
 
       sensor.start();
       sensorRef.current = sensor;
       setCalibrando(true);
       setSoportado(true);
+      estadoRef.current = 'iniciado';
+      setEstado('iniciado');
     } catch (error) {
       console.warn('No se pudo iniciar el magnetómetro:', error);
       setSoportado(false);
       setCalibrando(false);
+      estadoRef.current = 'error';
+      setEstado(`error:${error?.name || 'desconocido'}`);
     }
   }, []);
 
@@ -124,6 +138,7 @@ export const useMagnetometer = () => {
     magnitud,
     lineaBase,
     calibrando,
+    estado,
     iniciar,
     detener,
     recalibrar

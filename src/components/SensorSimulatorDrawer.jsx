@@ -7,7 +7,7 @@ import { X, Sun, Moon, Smartphone, Move } from 'lucide-react';
  * - Simular nivel de luz (Normal, Oscuro, Sol directo)
  * - Slider de 0° a 360° para rotar la brújula
  */
-const SensorSimulatorDrawer = ({ isOpen, onClose, onSimulatorChange }) => {
+const SensorSimulatorDrawer = ({ isOpen, onClose, onSimulatorChange, magSoportado, magEstado, magBase }) => {
   const [isWalking, setIsWalking] = useState(false);
   const [isShake, setIsShake] = useState(false);
   const [lightMode, setLightMode] = useState('normal');
@@ -199,6 +199,17 @@ const SensorSimulatorDrawer = ({ isOpen, onClose, onSimulatorChange }) => {
             <span className="text-purple-600">🧲</span>
             Campo Magnético: {magnitud} µT
           </h3>
+
+          {/* Diagnóstico del magnetómetro real */}
+          <div className={`mb-3 p-2 rounded-lg text-xs ${
+            magSoportado ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-800'
+          }`}>
+            <strong>Sensor real:</strong>{' '}
+            {magSoportado ? 'soportado' : 'NO soportado en este navegador'} ·{' '}
+            <strong>estado:</strong> {magEstado} ·{' '}
+            <strong>base:</strong> {magBase != null ? `${magBase.toFixed(1)} µT` : '—'}
+          </div>
+
           <input
             type="range"
             min="10"
@@ -215,7 +226,7 @@ const SensorSimulatorDrawer = ({ isOpen, onClose, onSimulatorChange }) => {
             <span>130 µT</span>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            Supera los 55 µT (base + 15) para activar la detección de metal en el HUD AR
+            Mueve el slider por debajo/por encima del valor base real para simular detección. Supera base + 15 µT para activar la alerta en el HUD AR.
           </p>
         </div>
 

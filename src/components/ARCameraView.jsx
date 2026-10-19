@@ -213,10 +213,12 @@ const ARCameraView = ({
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-full bg-yellow-400 shadow-[0_0_8px_2px_rgba(250,204,21,0.7)]" />
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-[6px] border-l-transparent border-r-transparent border-t-yellow-400" />
         </div>
+      </div>
 
-        {/* Detector de metales - Módulo 5 (Magnetómetro) */}
-        {magSoportado && (
-          <div className={`mt-2 bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2 border transition-colors ${
+      {/* Detector de metales - Módulo 5 (Magnetómetro) */}
+      {magSoportado && (
+        <div className="absolute top-20 left-2 right-2">
+          <div className={`bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2 border transition-colors ${
             hayCampo ? 'border-red-500' : 'border-white/20'
           }`}>
             <div className="flex items-center justify-between text-xs text-white/90">
@@ -249,8 +251,8 @@ const ARCameraView = ({
               </p>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Flechas guía */}
       <div className="absolute top-1/3 left-0 right-0 flex justify-between px-4">

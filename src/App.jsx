@@ -61,6 +61,7 @@ function App() {
     magnitud: magRaw,
     lineaBase: magBase,
     calibrando: magCalibrando,
+    estado: magEstado,
     iniciar: iniciarMagnet,
     recalibrar: recalibrarMagnet
   } = useMagnetometer();
@@ -233,12 +234,14 @@ function App() {
     return () => clearTimeout(timeoutId);
   }, [isARView, hayCampo, vibrateProximidad]);
 
-  // Al entrar al modo AR se recalibra la línea base (apuntando a zona libre)
+  // Al entrar al modo AR: iniciar magnetómetro (por si no arrancó) y recalibrar
+  // la línea base apuntando a una zona libre de metal
   useEffect(() => {
     if (isARView) {
+      iniciarMagnet();
       recalibrarMagnet();
     }
-  }, [isARView, recalibrarMagnet]);
+  }, [isARView, iniciarMagnet, recalibrarMagnet]);
 
   // Obtener POI actual
   const currentPOI = poiData[currentIndex];
@@ -367,6 +370,9 @@ function App() {
         isOpen={isSimulatorOpen}
         onClose={handleCloseSimulator}
         onSimulatorChange={handleSimulatorChange}
+        magSoportado={magSoportado}
+        magEstado={magEstado}
+        magBase={magBase}
       />
 
       {/* Indicador de lectura por voz activa */}
