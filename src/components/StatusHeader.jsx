@@ -1,11 +1,11 @@
 import React from 'react';
-import { Activity, Sun, Compass, Mic } from 'lucide-react';
+import { Activity, Sun, Compass, Mic, Volume2 } from 'lucide-react';
 
 /**
  * StatusHeader - Cabecera con estado en vivo de sensores
- * Muestra: estado de movimiento, tema lumínico, grados de brújula y estado del micrófono
+ * Muestra: estado de movimiento, tema lumínico, grados de brújula, micrófono y lectura por voz
  */
-const StatusHeader = ({ isWalking, lightMode, alpha, isListening }) => {
+const StatusHeader = ({ isWalking, lightMode, alpha, isListening, isSpeaking }) => {
   const normalizedAlpha = alpha >= 0 ? alpha % 360 : (alpha % 360) + 360;
 
   return (
@@ -43,8 +43,11 @@ const StatusHeader = ({ isWalking, lightMode, alpha, isListening }) => {
           </span>
         </div>
 
-        {/* Micrófono */}
+        {/* Micrófono y lectura por voz */}
         <div className="flex items-center gap-2">
+          {isSpeaking && (
+            <Volume2 className="w-5 h-5 text-blue-400 animate-pulse" />
+          )}
           <Mic
             className={`w-5 h-5 ${isListening ? 'text-red-400 animate-pulse' : 'text-gray-400'}`}
           />

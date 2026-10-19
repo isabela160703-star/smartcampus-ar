@@ -1,14 +1,38 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Thermometer, Users, Wifi } from 'lucide-react';
 
 /**
  * AdaptiveCardView - Vista principal que muta dinámicamente según contexto
  * - Adaptación por carga cognitiva (isWalking)
  * - Adaptación por iluminación (normal, dark, solar)
- * - Muestra telemetría IoT en tiempo real
+ * - Muestra telemetría IoT en tiempo real (valores simulados con fluctuación)
  */
 const AdaptiveCardView = ({ poi, isWalking, lightMode }) => {
-  if (!poi) {
+  const [telemetry, setTelemetry] = useState(poi ? poi.telemetria : null);
+
+  // RF3.1: telemetría simulada en tiempo real con fluctuación
+  useEffect(() => {
+    if (!poi) return;
+    setTelemetry(poi.telemetria);
+
+    const interval = setInterval(() => {
+      setTelemetry({
+        temperatura: Math.round((poi.telemetria.temperatura + (Math.random() - 0.5)) * 10) / 10,
+        ocupacionEquipos: Math.max(
+          0,
+          Math.min(
+            poi.capacidadTotal,
+            poi.telemetria.ocupacionEquipos + Math.round((Math.random() - 0.5) * 2)
+          )
+        ),
+        nivelSenal: Math.round(poi.telemetria.nivelSenal + (Math.random() - 0.5) * 8)
+      });
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [poi]);
+
+  if (!poi || !telemetry) {
     return (
       <div className="flex items-center justify-center h-full">
         <p className="text-gray-500">No hay laboratorio seleccionado</p>
@@ -90,7 +114,7 @@ const AdaptiveCardView = ({ poi, isWalking, lightMode }) => {
             'text-red-500'
           }`} />
           <span className={`${getTelemetrySize()} font-mono font-bold`}>
-            {poi.telemetria.temperatura.toFixed(1)}°C
+            {telemetry.temperatura.toFixed(1)}°C
           </span>
           <span className={`${getTelemetrySize()} ${getSecondaryTextStyles()}`}>
             Temp
@@ -105,7 +129,7 @@ const AdaptiveCardView = ({ poi, isWalking, lightMode }) => {
             'text-green-500'
           }`} />
           <span className={`${getTelemetrySize()} font-mono font-bold`}>
-            {poi.telemetria.ocupacionEquipos}
+            {telemetry.ocupacionEquipos}
           </span>
           <span className={`${getTelemetrySize()} ${getSecondaryTextStyles()}`}>
             Equipos
@@ -120,7 +144,7 @@ const AdaptiveCardView = ({ poi, isWalking, lightMode }) => {
             'text-blue-500'
           }`} />
           <span className={`${getTelemetrySize()} font-mono font-bold`}>
-            {poi.telemetria.nivelSenal} dBm
+            {telemetry.nivelSenal} dBm
           </span>
           <span className={`${getTelemetrySize()} ${getSecondaryTextStyles()}`}>
             Señal

@@ -1,21 +1,49 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, ArrowUp } from 'lucide-react';
-import { getActivePOI, getDirectionToNearestPOI } from '../data/poiData';
+import { getDirectionToNearestPOI } from '../data/poiData';
 
 /**
  * ARCameraView - Vista de cámara con HUD de Realidad Aumentada
- * - Cámara trasera en vivo
- * - HUD con brújula y flechas guía
- * - Tarjeta flotante AR cuando alpha coincide con un laboratorio
+ * - Cámara trasera en vivo (cleanup correcto con ref)
+ * - Cinta de brújula superior (0°-360°) con rangos de cada laboratorio
+ * - Flechas guía hacia el laboratorio más cercano
+ * - Tarjeta flotante AR translúcida cuando alpha coincide con un laboratorio
  */
-const ARCameraView = ({ alpha, activePOI, onCardFixed, isWalking, lightMode }) => {
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const [stream, setStream] = useState(null);
-  const [isCameraActive, setIsCameraActive] = useState(false);
 
-  // Iniciar cámara trasera
+// Ancho de ventana visible de la cinta de brújula (grados)
+const RIBBON_WINDOW = 120;
+
+// Calcular centro y ancho de rango de un POI
+const getPoiRange = (poi) => {
+  const width = poi.anguloMin > poi.anguloMax
+    ? poi.anguloMax + 360 - poi.anguloMin
+    : poi.anguloMax - poi.anguloMin;
+  const center = poi.anguloMin > poi.anguloMax
+    ? ((poi.anguloMin + width / 2) % 360)
+    : (poi.anguloMin + poi.anguloMax) / 2;
+  return { center, width };
+};
+
+// Distancia angular relativa (-180..180) desde alpha hacia un ángulo
+const relativeDeg = (angle, alpha) => ((angle - alpha + 540) % 360) - 180;
+
+const CARDINALS = [
+  { angle: 0, label: 'N' },
+  { angle: 90, label: 'E' },
+  { angle: 180, label: 'S' },
+  { angle: 270, label: 'O' }
+];
+
+const ARCameraView = ({ alpha, activePOI, poiData, onCardFixed, isWalking, lightMode }) => {
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState(false);
+
+  // Iniciar cámara trasera y liberarla siempre al desmontar
   useEffect(() => {
+    let cancelled = false;
+
     const startCamera = async () => {
       try {
         const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -23,24 +51,36 @@ const ARCameraView = ({ alpha, activePOI, onCardFixed, isWalking, lightMode }) =
             facingMode: 'environment',
             width: { ideal: 1280 },
             height: { ideal: 720 }
-          }
+          },
+          audio: false
         });
 
+        if (cancelled) {
+          mediaStream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        streamRef.current = mediaStream;
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
-          setStream(mediaStream);
-          setIsCameraActive(true);
         }
+        setIsCameraActive(true);
+        setCameraError(false);
       } catch (error) {
         console.error('Error al acceder a la cámara:', error);
+        if (!cancelled) {
+          setCameraError(true);
+        }
       }
     };
 
     startCamera();
 
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      cancelled = true;
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
       }
     };
   }, []);
@@ -53,7 +93,13 @@ const ARCameraView = ({ alpha, activePOI, onCardFixed, isWalking, lightMode }) =
   }, [activePOI, onCardFixed]);
 
   // Obtener dirección al laboratorio más cercano
-  const { direction, distance } = getDirectionToNearestPOI(alpha);
+  const { direction } = getDirectionToNearestPOI(alpha);
+
+  // Normalizar alpha 0-360
+  const normAlpha = ((alpha % 360) + 360) % 360;
+
+  // Posición en la cinta para un ángulo relativo (-window/2 .. window/2) → 0..100%
+  const toPercent = (rel) => ((rel + RIBBON_WINDOW / 2) / RIBBON_WINDOW) * 100;
 
   // Estilos según el modo de iluminación
   const getCardStyles = () => {
@@ -79,7 +125,7 @@ const ARCameraView = ({ alpha, activePOI, onCardFixed, isWalking, lightMode }) =
   };
 
   return (
-    <div className="relative w-full h-full bg-black">
+    <div className="relative w-full h-[calc(100dvh-9rem)] bg-black rounded-xl overflow-hidden">
       {/* Video de la cámara */}
       <video
         ref={videoRef}
@@ -89,18 +135,70 @@ const ARCameraView = ({ alpha, activePOI, onCardFixed, isWalking, lightMode }) =
         className="w-full h-full object-cover"
       />
 
-      {/* Canvas para dibujar HUD */}
-      <canvas
-        ref={canvasRef}
-        className="absolute top-0 left-0 w-full h-full pointer-events-none"
-      />
+      {/* Cinta de Brújula HUD (RF4.2) */}
+      <div className="absolute top-2 left-2 right-2">
+        <div className="relative h-14 bg-black/60 backdrop-blur-sm rounded-xl overflow-hidden border border-white/20">
+          {/* Segmentos de laboratorios en la cinta */}
+          {poiData.map((poi) => {
+            const { center, width } = getPoiRange(poi);
+            const rel = relativeDeg(center, normAlpha);
+            const half = width / 2;
+            // Ocultar si está fuera de la ventana visible
+            if (rel + half < -RIBBON_WINDOW / 2 || rel - half > RIBBON_WINDOW / 2) {
+              return null;
+            }
+            const left = toPercent(rel - half);
+            const right = toPercent(rel + half);
+            const isActive = activePOI && activePOI.id === poi.id;
+            return (
+              <div
+                key={poi.id}
+                className={`absolute top-0 h-full rounded-md transition-colors ${
+                  isActive
+                    ? 'bg-blue-500/70 border-x-2 border-blue-300'
+                    : 'bg-blue-500/25 border-x border-blue-400/40'
+                }`}
+                style={{
+                  left: `${left}%`,
+                  width: `${Math.max(right - left, 2)}%`
+                }}
+              />
+            );
+          })}
 
-      {/* HUD de Brújula */}
-      <div className="absolute top-16 left-0 right-0 flex justify-center">
-        <div className="bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full">
-          <span className="text-white font-mono text-lg">
-            {Math.round(alpha >= 0 ? alpha % 360 : (alpha % 360) + 360)}°
-          </span>
+          {/* Cardinalidades N/E/S/O */}
+          {CARDINALS.map(({ angle, label }) => {
+            const rel = relativeDeg(angle, normAlpha);
+            if (Math.abs(rel) > RIBBON_WINDOW / 2) return null;
+            return (
+              <div
+                key={label}
+                className="absolute top-1 -translate-x-1/2 text-white/90 font-bold text-sm"
+                style={{ left: `${toPercent(rel)}%` }}
+              >
+                {label}
+              </div>
+            );
+          })}
+
+          {/* Marcas de grado cada 15° */}
+          {Array.from({ length: Math.ceil(RIBBON_WINDOW / 15) + 1 }, (_, i) => {
+            const rel = -RIBBON_WINDOW / 2 + i * 15;
+            const angle = ((normAlpha + rel) % 360 + 360) % 360;
+            return (
+              <div
+                key={i}
+                className="absolute top-7 -translate-x-1/2 text-[10px] font-mono text-white/70"
+                style={{ left: `${toPercent(rel)}%` }}
+              >
+                {Math.round(angle)}°
+              </div>
+            );
+          })}
+
+          {/* Puntero central */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-full bg-yellow-400 shadow-[0_0_8px_2px_rgba(250,204,21,0.7)]" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-[6px] border-l-transparent border-r-transparent border-t-yellow-400" />
         </div>
       </div>
 
@@ -151,7 +249,9 @@ const ARCameraView = ({ alpha, activePOI, onCardFixed, isWalking, lightMode }) =
       {/* Indicador de cámara inactiva */}
       {!isCameraActive && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
-          <p className="text-white text-lg">Cargando cámara...</p>
+          <p className="text-white text-lg">
+            {cameraError ? 'No se pudo acceder a la cámara' : 'Cargando cámara...'}
+          </p>
         </div>
       )}
     </div>

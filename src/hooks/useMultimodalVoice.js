@@ -2,11 +2,12 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 
 /**
  * Hook para interfaz multimodal de voz
- * - Síntesis de voz (TTS) en español
+ * - Síntesis de voz (TTS) en español con estado isSpeaking
  * - Reconocimiento de comandos de voz básicos
  */
 export const useMultimodalVoice = () => {
   const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [lastCommand, setLastCommand] = useState(null);
   const recognitionRef = useRef(null);
   const synthesisRef = useRef(null);
@@ -23,8 +24,8 @@ export const useMultimodalVoice = () => {
 
       recognitionRef.current.onresult = (event) => {
         const command = event.results[0][0].transcript.toLowerCase().trim();
-        setLastCommand(command);
-        processCommand(command);
+        // timestamp para que repetir el mismo comando sí dispare el efecto
+        setLastCommand({ text: command, at: Date.now() });
       };
 
       recognitionRef.current.onerror = (event) => {
@@ -83,6 +84,10 @@ export const useMultimodalVoice = () => {
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
 
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
     synthesisRef.current.speak(utterance);
   }, []);
 
@@ -111,10 +116,12 @@ export const useMultimodalVoice = () => {
     if (synthesisRef.current) {
       synthesisRef.current.cancel();
     }
+    setIsSpeaking(false);
   }, []);
 
   return {
     isListening,
+    isSpeaking,
     lastCommand,
     speak,
     startListening,

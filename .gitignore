@@ -19,9 +19,6 @@ dist-ssr
 *.sln
 *.sw?
 
-# Docker
-.dockerignore
-
 # Logs
 *.log
 npm-debug.log*

@@ -3,6 +3,7 @@ import { poiData, getActivePOI } from './data/poiData';
 import { useHaptics } from './hooks/useHaptics';
 import { useMultimodalVoice } from './hooks/useMultimodalVoice';
 import { useMotionSensors } from './hooks/useMotionSensors';
+import { useAmbientLight } from './hooks/useAmbientLight';
 import StatusHeader from './components/StatusHeader';
 import ARCameraView from './components/ARCameraView';
 import AdaptiveCardView from './components/AdaptiveCardView';
@@ -19,13 +20,14 @@ function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isARView, setIsARView] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
-  const [lightMode, setLightMode] = useState('normal');
   const [simulatorState, setSimulatorState] = useState(null);
+
+  // Adaptación visual por iluminación (RF1.2): automática con fallback al simulador
+  const { lightMode, setManual: setManualLightMode } = useAmbientLight();
 
   const {
     orientation,
     isWalking,
-    isShake,
     hasPermission,
     requestPermission,
     startSensors,
@@ -36,6 +38,7 @@ function App() {
 
   const {
     isListening,
+    isSpeaking,
     lastCommand,
     speak,
     startListening,
@@ -50,65 +53,6 @@ function App() {
     vibratePulse
   } = useHaptics();
 
-  // Manejar inicio de la aplicación con permisos
-  const handleStart = async () => {
-    const granted = await requestPermission();
-    if (granted) {
-      startSensors();
-      setIsWelcomeScreen(false);
-    }
-  };
-
-  // Callback para cambios de orientación (inclinación)
-  useEffect(() => {
-    onOrientationChange((direction) => {
-      if (direction === 'next') {
-        handleNext();
-      } else if (direction === 'previous') {
-        handlePrevious();
-      }
-    });
-  }, [onOrientationChange]);
-
-  // Callback para detección de shake
-  useEffect(() => {
-    onShake(() => {
-      vibrateDouble();
-      if (isListening) {
-        stopListening();
-      } else {
-        startListening();
-      }
-    });
-  }, [onShake, isListening, startListening, stopListening, vibrateDouble]);
-
-  // Procesar comandos de voz
-  useEffect(() => {
-    if (lastCommand) {
-      const action = processCommand(lastCommand);
-      if (action) {
-        vibrateDouble();
-        switch (action) {
-          case 'next':
-            handleNext();
-            break;
-          case 'previous':
-            handlePrevious();
-            break;
-          case 'read':
-            readCurrentCard();
-            break;
-          case 'camera':
-            toggleAR();
-            break;
-          case 'stop':
-            stopSpeaking();
-            break;
-        }
-      }
-    }
-  }, [lastCommand, processCommand, vibrateDouble]);
-
   // Leer tarjeta actual por voz
   const readCurrentCard = useCallback(() => {
     const poi = poiData[currentIndex];
@@ -117,13 +61,6 @@ function App() {
       speak(`${poi.nombre}. ${text}`);
     }
   }, [currentIndex, isWalking, speak]);
-
-  // Activar lectura automática al caminar
-  useEffect(() => {
-    if (isWalking && !isWelcomeScreen) {
-      readCurrentCard();
-    }
-  }, [isWalking, isWelcomeScreen, readCurrentCard]);
 
   // Navegación
   const handleNext = useCallback(() => {
@@ -148,6 +85,74 @@ function App() {
     }
   }, [isListening, startListening, stopListening]);
 
+  // Manejar inicio de la aplicación con permisos
+  const handleStart = async () => {
+    const granted = await requestPermission();
+    if (granted) {
+      startSensors();
+      setIsWelcomeScreen(false);
+    } else {
+      alert('Los permisos de sensores fueron denegados. La app no podrá detectar tu orientación ni tu movimiento.');
+    }
+  };
+
+  // Callback para cambios de orientación (inclinación)
+  useEffect(() => {
+    onOrientationChange((direction) => {
+      if (direction === 'next') {
+        handleNext();
+      } else if (direction === 'previous') {
+        handlePrevious();
+      }
+    });
+  }, [onOrientationChange, handleNext, handlePrevious]);
+
+  // RF2.1: Shake detiene o inicia la lectura por voz (TTS)
+  useEffect(() => {
+    onShake(() => {
+      vibrateDouble();
+      if (isSpeaking) {
+        stopSpeaking();
+      } else {
+        readCurrentCard();
+      }
+    });
+  }, [onShake, isSpeaking, stopSpeaking, readCurrentCard, vibrateDouble]);
+
+  // Procesar comandos de voz
+  useEffect(() => {
+    if (lastCommand?.text) {
+      const action = processCommand(lastCommand.text);
+      if (action) {
+        vibrateDouble();
+        switch (action) {
+          case 'next':
+            handleNext();
+            break;
+          case 'previous':
+            handlePrevious();
+            break;
+          case 'read':
+            readCurrentCard();
+            break;
+          case 'camera':
+            toggleAR();
+            break;
+          case 'stop':
+            stopSpeaking();
+            break;
+        }
+      }
+    }
+  }, [lastCommand, processCommand, vibrateDouble, handleNext, handlePrevious, readCurrentCard, toggleAR, stopSpeaking]);
+
+  // Activar lectura automática al caminar (una sola vez por transición)
+  useEffect(() => {
+    if (isWalking && !isWelcomeScreen) {
+      readCurrentCard();
+    }
+  }, [isWalking, isWelcomeScreen, readCurrentCard]);
+
   // Obtener POI activo según brújula
   const activePOI = getActivePOI(orientation.alpha);
 
@@ -164,9 +169,9 @@ function App() {
   const handleSimulatorChange = useCallback((state) => {
     setSimulatorState(state);
     if (state.lightMode) {
-      setLightMode(state.lightMode);
+      setManualLightMode(state.lightMode);
     }
-  }, []);
+  }, [setManualLightMode]);
 
   // Obtener POI actual
   const currentPOI = poiData[currentIndex];
@@ -174,8 +179,8 @@ function App() {
   // Pantalla de bienvenida
   if (isWelcomeScreen) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center p-6">
-        <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center">
+      <div className="min-h-[100dvh] bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center p-6 overflow-y-auto">
+        <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center my-8">
           <div className="mb-6">
             <h1 className="text-4xl font-bold text-gray-900 mb-2">
               SmartCampus AR
@@ -215,7 +220,7 @@ function App() {
                 <span className="text-blue-600 font-bold">4</span>
               </div>
               <p className="text-sm text-gray-700">
-                La interfaz se adapta automáticamente cuando caminas
+                Agita el teléfono para iniciar o detener la lectura por voz
               </p>
             </div>
           </div>
@@ -237,7 +242,7 @@ function App() {
 
   // Aplicación principal
   return (
-    <div className={`min-h-screen ${
+    <div className={`min-h-[100dvh] ${
       lightMode === 'solar' ? 'bg-black' :
       lightMode === 'dark' ? 'bg-gray-900' :
       'bg-gray-100'
@@ -247,13 +252,15 @@ function App() {
         lightMode={lightMode}
         alpha={orientation.alpha}
         isListening={isListening}
+        isSpeaking={isSpeaking}
       />
 
-      <div className="pt-16 pb-24 px-4 max-w-lg mx-auto">
+      <div className="pt-20 pb-32 px-4 max-w-lg mx-auto">
         {isARView ? (
           <ARCameraView
             alpha={orientation.alpha}
             activePOI={activePOI}
+            poiData={poiData}
             onCardFixed={handleCardFixed}
             isWalking={isWalking}
             lightMode={lightMode}
@@ -284,6 +291,14 @@ function App() {
         onClose={() => setIsSimulatorOpen(false)}
         onSimulatorChange={handleSimulatorChange}
       />
+
+      {/* Indicador de lectura por voz activa */}
+      {isSpeaking && (
+        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-40 bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg flex items-center gap-2">
+          <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+          Leyendo...
+        </div>
+      )}
     </div>
   );
 }

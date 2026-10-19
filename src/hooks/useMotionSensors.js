@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
  * Hook para sensores de movimiento del dispositivo
  * - DeviceOrientationEvent (giroscopio/brújula)
  * - DeviceMotionEvent (acelerómetro)
- * - Detección de caminata
+ * - Detección de caminata con debounce (muestras consecutivas)
  * - Detección de gesto shake
  * - Inclinación gamma con cooldown para navegación
  * - Soporte para simulación manual
@@ -17,38 +17,45 @@ export const useMotionSensors = (simulatorState = null) => {
 
   const lastGammaChangeRef = useRef(0);
   const lastShakeRef = useRef(0);
-  const accelerationHistoryRef = useRef([]);
+  const walkingSampleCountRef = useRef(0);
+  const idleSampleCountRef = useRef(0);
   const orientationCallbackRef = useRef(null);
   const motionCallbackRef = useRef(null);
 
   // Solicitar permisos para iOS 13+
   const requestPermission = useCallback(async () => {
+    let denied = false;
+
     if (typeof DeviceOrientationEvent !== 'undefined' &&
         typeof DeviceOrientationEvent.requestPermission === 'function') {
       try {
         const permission = await DeviceOrientationEvent.requestPermission();
-        if (permission === 'granted') {
-          setHasPermission(true);
-          return true;
+        if (permission !== 'granted') {
+          denied = true;
         }
       } catch (error) {
         console.error('Error al solicitar permisos de orientación:', error);
-        return false;
+        denied = true;
       }
     }
 
-    if (typeof DeviceMotionEvent !== 'undefined' &&
+    if (!denied &&
+        typeof DeviceMotionEvent !== 'undefined' &&
         typeof DeviceMotionEvent.requestPermission === 'function') {
       try {
         const permission = await DeviceMotionEvent.requestPermission();
-        if (permission === 'granted') {
-          setHasPermission(true);
-          return true;
+        if (permission !== 'granted') {
+          denied = true;
         }
       } catch (error) {
         console.error('Error al solicitar permisos de movimiento:', error);
-        return false;
+        denied = true;
       }
+    }
+
+    if (denied) {
+      setHasPermission(false);
+      return false;
     }
 
     // En Android/PC no se requiere permiso explícito
@@ -56,7 +63,14 @@ export const useMotionSensors = (simulatorState = null) => {
     return true;
   }, []);
 
-  // Detectar caminata basado en aceleración
+  // Umbral de marcha: se requieren muestras consecutivas para activar
+  // y un tramo continuo de inactividad para desactivar (evita parpadeos)
+  const WALKING_ON_THRESHOLD = 11;
+  const WALKING_OFF_THRESHOLD = 9;
+  const SAMPLES_TO_START = 4;
+  const SAMPLES_TO_STOP = 30;
+
+  // Detectar caminata basado en aceleración (con debounce)
   const detectWalking = useCallback((acceleration) => {
     if (!acceleration) return false;
 
@@ -66,10 +80,22 @@ export const useMotionSensors = (simulatorState = null) => {
 
     const magnitude = Math.sqrt(x * x + y * y + z * z);
 
-    // Umbral para detectar caminata (ajustado según pruebas)
-    const WALKING_THRESHOLD = 12;
+    if (magnitude > WALKING_ON_THRESHOLD) {
+      walkingSampleCountRef.current += 1;
+      idleSampleCountRef.current = 0;
+    } else if (magnitude < WALKING_OFF_THRESHOLD) {
+      idleSampleCountRef.current += 1;
+      walkingSampleCountRef.current = 0;
+    }
 
-    return magnitude > WALKING_THRESHOLD;
+    if (walkingSampleCountRef.current >= SAMPLES_TO_START) {
+      return true;
+    }
+    if (idleSampleCountRef.current >= SAMPLES_TO_STOP) {
+      return false;
+    }
+    // En muestras intermedias se mantiene el último estado via setIsWalking con updater
+    return undefined;
   }, []);
 
   // Detectar gesto shake
@@ -82,7 +108,7 @@ export const useMotionSensors = (simulatorState = null) => {
 
     const magnitude = Math.sqrt(x * x + y * y + z * z);
 
-    // Umbral para shake
+    // Umbral para shake (incluye gravedad como referencia)
     const SHAKE_THRESHOLD = 25;
     const now = Date.now();
 
@@ -133,11 +159,14 @@ export const useMotionSensors = (simulatorState = null) => {
 
   // Manejar evento de movimiento
   const handleMotion = useCallback((event) => {
-    const acceleration = event.acceleration;
+    // Aceleración lineal (sin gravedad); fallback a la que incluye gravedad
+    const acceleration = event.acceleration || event.accelerationIncludingGravity;
 
-    // Detectar caminata
+    // Detectar caminata (undefined = mantener estado anterior)
     const walking = detectWalking(acceleration);
-    setIsWalking(walking);
+    if (walking !== undefined) {
+      setIsWalking(walking);
+    }
 
     // Detectar shake
     const shake = detectShake(acceleration);
@@ -157,6 +186,14 @@ export const useMotionSensors = (simulatorState = null) => {
   const stopSensors = useCallback(() => {
     window.removeEventListener('deviceorientation', handleOrientation);
     window.removeEventListener('devicemotion', handleMotion);
+  }, [handleOrientation, handleMotion]);
+
+  // Limpiar sensores al desmontar
+  useEffect(() => {
+    return () => {
+      window.removeEventListener('deviceorientation', handleOrientation);
+      window.removeEventListener('devicemotion', handleMotion);
+    };
   }, [handleOrientation, handleMotion]);
 
   // Efecto para manejar simulación manual

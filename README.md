@@ -104,17 +104,18 @@ ip addr show
 - Luego puedes usarla sin conexión (el contenedor Docker debe seguir corriendo)
 - Los sensores (cámara, micrófono, giroscopio) requieren HTTPS - en modo producción necesitas configurar HTTPS en nginx o usar un proxy
 
-1. Abre el navegador web en tu celular (Chrome, Safari, etc.)
-2. Navega a: `https://<TU_IP_LOCAL>:5173`
-   - Ejemplo: `https://192.168.1.100:5173`
-3. **IMPORTANTE:** Acepta el certificado autofirmado
-   - Verás una advertencia de seguridad ("Su conexión no es privada")
-   - En Chrome: Toca "Avanzado" → "Continuar a..."
-   - En Safari: Tapa "Detalles" → "Visitar este sitio web"
-4. Concede los permisos solicitados:
-   - Cámara (para AR)
-   - Micrófono (para comandos de voz)
-   - Sensores (giroscopio/acelerómetro)
+### Opción 3: GitHub Pages (PWA en línea, sin Docker)
+
+El workflow `.github/workflows/deploy.yml` construye la PWA y la publica automáticamente en GitHub Pages con cada push a `main`.
+
+**Configuración única en GitHub:**
+1. Ve a tu repo → **Settings** → **Pages**
+2. En **Build and deployment** → **Source** selecciona **GitHub Actions**
+3. Haz push de tus cambios a la rama `main`
+
+La app quedará disponible en: `https://isabela160703-star.github.io/smartcampus-ar/`
+
+> El build de GitHub Pages usa la variable `GITHUB_PAGES=true` para generar los assets bajo la base `/smartcampus-ar/`. El build de Docker usa `/` (raíz). Ambos comparten el mismo código. GitHub Pages entrega HTTPS con certificado válido (sin advertencias), por lo que cámara, micrófono y giroscopio funcionan directo desde el celular.
 
 ### 4. Usar la Aplicación
 
@@ -130,7 +131,7 @@ ip addr show
 #### Navegación por Gestos:
 - Inclina el teléfono a la derecha (>25°) para ir al siguiente laboratorio
 - Inclina el teléfono a la izquierda (<-25°) para ir al anterior
-- Agita el teléfono (Shake) para activar/desactivar el reconocimiento de voz
+- Agita el teléfono (Shake) para iniciar o detener la lectura por voz
 
 #### Comandos de Voz:
 - "siguiente" - Ir al siguiente laboratorio
@@ -141,7 +142,7 @@ ip addr show
 
 #### Adaptación al Contexto:
 - **Caminando:** La interfaz se simplifica, textos más cortos, lectura automática por voz
-- **Iluminación:**
+- **Iluminación (automática con AmbientLightSensor, o manual desde el simulador):**
   - Normal: Diseño estándar
   - Oscuro: Tema oscuro para baja luz
   - Sol: Alto contraste (fondo negro, bordes amarillos) para exteriores
@@ -167,17 +168,27 @@ smartcampus-ar/
 │   ├── hooks/
 │   │   ├── useHaptics.js          # Retroalimentación háptica
 │   │   ├── useMultimodalVoice.js  # TTS y reconocimiento de voz
-│   │   └── useMotionSensors.js    # Sensores de movimiento
+│   │   ├── useMotionSensors.js    # Sensores de movimiento
+│   │   └── useAmbientLight.js     # Adaptación automática por luz (AmbientLightSensor)
 │   ├── data/
 │   │   └── poiData.js             # Datos de laboratorios y telemetría
 │   ├── App.jsx                    # Componente principal
-│   ├── main.jsx                   # Punto de entrada
+│   ├── main.jsx                   # Punto de entrada + registro PWA
 │   └── index.css                  # Estilos globales
+├── .github/workflows/deploy.yml   # Deploy automático a GitHub Pages
+├── public/
+│   ├── icon.svg                   # Icono vectorial
+│   ├── icon-192.png               # Icono PNG 192x192
+│   ├── icon-512.png               # Icono PNG 512x512
+│   └── icon-maskable-512.png      # Icono maskable para Android
 ├── Dockerfile.dev                 # Dockerfile para desarrollo
+├── Dockerfile.prod                # Dockerfile para producción (nginx)
 ├── docker-compose.yml             # Configuración Docker Compose
-├── vite.config.js                 # Configuración Vite con SSL
+├── nginx.conf                     # Configuración nginx (headers de caché PWA)
+├── vite.config.js                 # Configuración Vite + PWA + SSL
 ├── tailwind.config.js             # Configuración Tailwind CSS
 ├── package.json                   # Dependencias
+├── package-lock.json              # Versiones exactas (requerido por CI)
 └── README.md                      # Este archivo
 ```
 
