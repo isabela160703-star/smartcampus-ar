@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { poiData, getActivePOI } from './data/poiData';
 import { useHaptics } from './hooks/useHaptics';
 import { useMultimodalVoice } from './hooks/useMultimodalVoice';
@@ -111,7 +111,11 @@ function App() {
   useEffect(() => {
     onShake(() => {
       vibrateDouble();
-      if (isSpeaking) {
+      const speaking = isSpeaking ||
+        (typeof window !== 'undefined' &&
+         window.speechSynthesis &&
+         window.speechSynthesis.speaking);
+      if (speaking) {
         stopSpeaking();
       } else {
         readCurrentCard();
@@ -119,29 +123,34 @@ function App() {
     });
   }, [onShake, isSpeaking, stopSpeaking, readCurrentCard, vibrateDouble]);
 
-  // Procesar comandos de voz
+  // Procesar comandos de voz - solo UNA VEZ por comando nuevo.
+  // Sin este guard, el efecto se re-ejecutaba al cambiar currentIndex
+  // (readCurrentCard cambia de identidad) y repetía el comando en bucle.
+  const lastProcessedCommandRef = useRef(null);
   useEffect(() => {
-    if (lastCommand?.text) {
-      const action = processCommand(lastCommand.text);
-      if (action) {
-        vibrateDouble();
-        switch (action) {
-          case 'next':
-            handleNext();
-            break;
-          case 'previous':
-            handlePrevious();
-            break;
-          case 'read':
-            readCurrentCard();
-            break;
-          case 'camera':
-            toggleAR();
-            break;
-          case 'stop':
-            stopSpeaking();
-            break;
-        }
+    if (!lastCommand?.text) return;
+    if (lastProcessedCommandRef.current === lastCommand.at) return;
+    lastProcessedCommandRef.current = lastCommand.at;
+
+    const action = processCommand(lastCommand.text);
+    if (action) {
+      vibrateDouble();
+      switch (action) {
+        case 'next':
+          handleNext();
+          break;
+        case 'previous':
+          handlePrevious();
+          break;
+        case 'read':
+          readCurrentCard();
+          break;
+        case 'camera':
+          toggleAR();
+          break;
+        case 'stop':
+          stopSpeaking();
+          break;
       }
     }
   }, [lastCommand, processCommand, vibrateDouble, handleNext, handlePrevious, readCurrentCard, toggleAR, stopSpeaking]);

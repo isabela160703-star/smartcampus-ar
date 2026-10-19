@@ -24,6 +24,14 @@ export const useMultimodalVoice = () => {
 
       recognitionRef.current.onresult = (event) => {
         const command = event.results[0][0].transcript.toLowerCase().trim();
+
+        // Ignorar lo que el micrófono capte de la propia síntesis de voz (TTS),
+        // salvo comandos de parada (para poder detener la lectura por voz)
+        const isStopCommand = command.includes('parar') || command.includes('detener');
+        if (synthesisRef.current && synthesisRef.current.speaking && !isStopCommand) {
+          return;
+        }
+
         // timestamp para que repetir el mismo comando sí dispare el efecto
         setLastCommand({ text: command, at: Date.now() });
       };
