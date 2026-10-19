@@ -13,37 +13,44 @@ const SensorSimulatorDrawer = ({ isOpen, onClose, onSimulatorChange }) => {
   const [lightMode, setLightMode] = useState('normal');
   const [alpha, setAlpha] = useState(0);
   const [gamma, setGamma] = useState(0);
+  const [magnitud, setMagnitud] = useState(40);
 
   const handleToggleWalking = () => {
     const newValue = !isWalking;
     setIsWalking(newValue);
-    onSimulatorChange({ isWalking: newValue, alpha, gamma, lightMode, isShake });
+    onSimulatorChange({ isWalking: newValue, alpha, gamma, lightMode, isShake, magnitud });
   };
 
   const handleShake = () => {
     setIsShake(true);
-    onSimulatorChange({ isWalking, alpha, gamma, lightMode, isShake: true });
+    onSimulatorChange({ isWalking, alpha, gamma, lightMode, isShake: true, magnitud });
     setTimeout(() => {
       setIsShake(false);
-      onSimulatorChange({ isWalking, alpha, gamma, lightMode, isShake: false });
+      onSimulatorChange({ isWalking, alpha, gamma, lightMode, isShake: false, magnitud });
     }, 500);
   };
 
   const handleLightModeChange = (mode) => {
     setLightMode(mode);
-    onSimulatorChange({ isWalking, alpha, gamma, lightMode: mode, isShake });
+    onSimulatorChange({ isWalking, alpha, gamma, lightMode: mode, isShake, magnitud });
   };
 
   const handleAlphaChange = (e) => {
     const value = parseInt(e.target.value);
     setAlpha(value);
-    onSimulatorChange({ isWalking, alpha: value, gamma, lightMode, isShake });
+    onSimulatorChange({ isWalking, alpha: value, gamma, lightMode, isShake, magnitud });
   };
 
   const handleGammaChange = (e) => {
     const value = parseInt(e.target.value);
     setGamma(value);
-    onSimulatorChange({ isWalking, alpha, gamma: value, lightMode, isShake });
+    onSimulatorChange({ isWalking, alpha, gamma: value, lightMode, isShake, magnitud });
+  };
+
+  const handleMagnitudChange = (e) => {
+    const value = parseInt(e.target.value);
+    setMagnitud(value);
+    onSimulatorChange({ isWalking, alpha, gamma, lightMode, isShake, magnitud: value });
   };
 
   if (!isOpen) return null;
@@ -183,6 +190,32 @@ const SensorSimulatorDrawer = ({ isOpen, onClose, onSimulatorChange }) => {
           </div>
           <p className="text-xs text-gray-500 mt-2">
             Inclina más de 25° para cambiar de tarjeta
+          </p>
+        </div>
+
+        {/* Simulación de Campo Magnético (Módulo 5) */}
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <span className="text-purple-600">🧲</span>
+            Campo Magnético: {magnitud} µT
+          </h3>
+          <input
+            type="range"
+            min="10"
+            max="130"
+            value={magnitud}
+            onChange={handleMagnitudChange}
+            className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${
+              magnitud > 55 ? 'bg-red-500' : 'bg-purple-300'
+            }`}
+          />
+          <div className="flex justify-between text-xs text-gray-500 mt-1">
+            <span>10 µT</span>
+            <span>40 µT (base ambiental)</span>
+            <span>130 µT</span>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Supera los 55 µT (base + 15) para activar la detección de metal en el HUD AR
           </p>
         </div>
 

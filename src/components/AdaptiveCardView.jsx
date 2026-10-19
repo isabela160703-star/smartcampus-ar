@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Thermometer, Users, Wifi } from 'lucide-react';
+import { Thermometer, Users, Wifi, Magnet } from 'lucide-react';
 
 /**
  * AdaptiveCardView - Vista principal que muta dinámicamente según contexto
  * - Adaptación por carga cognitiva (isWalking)
  * - Adaptación por iluminación (normal, dark, solar)
  * - Muestra telemetría IoT en tiempo real (valores simulados con fluctuación)
+ * - Módulo 5: campo magnético del nodo (µT) si el teléfono tiene magnetómetro
  */
-const AdaptiveCardView = ({ poi, isWalking, lightMode }) => {
+const AdaptiveCardView = ({ poi, isWalking, lightMode, magSoportado, magnitud, hayCampo }) => {
   const [telemetry, setTelemetry] = useState(poi ? poi.telemetria : null);
 
   // RF3.1: telemetría simulada en tiempo real con fluctuación
@@ -101,7 +102,7 @@ const AdaptiveCardView = ({ poi, isWalking, lightMode }) => {
       </div>
 
       {/* Telemetría IoT */}
-      <div className={`grid grid-cols-3 gap-4 pt-4 border-t-2 ${
+      <div className={`grid ${magSoportado ? 'grid-cols-2' : 'grid-cols-3'} gap-4 pt-4 border-t-2 ${
         lightMode === 'solar' ? 'border-yellow-400' :
         lightMode === 'dark' ? 'border-blue-400' :
         'border-gray-200'
@@ -150,6 +151,24 @@ const AdaptiveCardView = ({ poi, isWalking, lightMode }) => {
             Señal
           </span>
         </div>
+
+        {/* Campo magnético (Módulo 5) */}
+        {magSoportado && magnitud != null && (
+          <div className="flex flex-col items-center">
+            <Magnet className={`w-6 h-6 mb-1 ${
+              hayCampo ? 'text-red-500 animate-pulse' :
+              lightMode === 'solar' ? 'text-yellow-400' :
+              lightMode === 'dark' ? 'text-blue-400' :
+              'text-purple-500'
+            }`} />
+            <span className={`${getTelemetrySize()} font-mono font-bold ${hayCampo ? 'text-red-500' : ''}`}>
+              {magnitud.toFixed(1)} µT
+            </span>
+            <span className={`${getTelemetrySize()} ${getSecondaryTextStyles()}`}>
+              {hayCampo ? '¡Metal!' : 'Campo'}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Estado y capacidad */}

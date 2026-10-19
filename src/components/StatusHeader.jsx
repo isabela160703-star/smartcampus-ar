@@ -1,11 +1,12 @@
 import React from 'react';
-import { Activity, Sun, Compass, Mic, Volume2 } from 'lucide-react';
+import { Activity, Sun, Compass, Mic, Volume2, Magnet } from 'lucide-react';
 
 /**
  * StatusHeader - Cabecera con estado en vivo de sensores
- * Muestra: estado de movimiento, tema lumínico, grados de brújula, micrófono y lectura por voz
+ * Muestra: estado de movimiento, tema lumínico, grados de brújula,
+ * micrófono, lectura por voz y alerta de campo magnético (Módulo 5)
  */
-const StatusHeader = ({ isWalking, lightMode, alpha, isListening, isSpeaking }) => {
+const StatusHeader = ({ isWalking, lightMode, alpha, isListening, isSpeaking, hayCampo }) => {
   const normalizedAlpha = alpha >= 0 ? alpha % 360 : (alpha % 360) + 360;
 
   return (
@@ -45,6 +46,9 @@ const StatusHeader = ({ isWalking, lightMode, alpha, isListening, isSpeaking }) 
 
         {/* Micrófono y lectura por voz */}
         <div className="flex items-center gap-2">
+          {hayCampo && (
+            <Magnet className="w-5 h-5 text-red-400 animate-pulse" aria-label="Metal detectado" />
+          )}
           {isSpeaking && (
             <Volume2 className="w-5 h-5 text-blue-400 animate-pulse" />
           )}

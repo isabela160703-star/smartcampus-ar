@@ -11,6 +11,7 @@ Aplicación web móvil progresiva (PWA) desplegada en contenedores Docker para g
   - Comandos de voz: "siguiente", "anterior", "leer", "cámara"
   - Retroalimentación háptica (vibración)
 - **Telemetría IoT Simulada:** Temperatura, ocupación de equipos y nivel de señal en tiempo real
+- **Detección Magnética (Módulo 5):** Usa el magnetómetro del teléfono para medir el campo magnético (µT) del nodo y detectar estructuras metálicas en modo AR, con vibración proporcional a la cercanía
 - **Simulador de Sensores:** Panel de desarrollo para probar la app desde PC
 
 ## Requisitos Previos
@@ -153,6 +154,14 @@ La app quedará disponible en: `https://isabela160703-star.github.io/smartcampus
 - Cambia el nivel de luz
 - Ajusta la brújula manualmente con el slider (0° - 360°)
 - Ajusta la inclinación gamma para probar navegación por gestos
+- Ajusta el campo magnético (10 - 130 µT) para probar la detección de metal (supera 55 µT)
+
+#### Detección Magnética (Módulo 5):
+- Mide el campo magnético del entorno en µT (sensor Magnetómetro, solo Chrome/Android)
+- La línea base se calibra automáticamente al iniciar y al entrar al modo AR
+- En el HUD AR aparece una barra: azul = ambiente normal, roja = metal detectado
+- El teléfono vibra con pulsos cada vez más rápidos al acercarte a una estructura metálica
+- En los teléfonos sin magnetómetro (iPhone/Safari), la función se oculta automáticamente y puedes simularla desde el Sim
 
 ## Arquitectura del Proyecto
 
@@ -169,7 +178,8 @@ smartcampus-ar/
 │   │   ├── useHaptics.js          # Retroalimentación háptica
 │   │   ├── useMultimodalVoice.js  # TTS y reconocimiento de voz
 │   │   ├── useMotionSensors.js    # Sensores de movimiento
-│   │   └── useAmbientLight.js     # Adaptación automática por luz (AmbientLightSensor)
+│   │   ├── useAmbientLight.js     # Adaptación automática por luz (AmbientLightSensor)
+│   │   └── useMagnetometer.js     # Módulo 5: campo magnético y detección de metal
 │   ├── data/
 │   │   └── poiData.js             # Datos de laboratorios y telemetría
 │   ├── App.jsx                    # Componente principal
@@ -202,6 +212,8 @@ smartcampus-ar/
 - **Web APIs Nativas:**
   - DeviceOrientationEvent (giroscopio)
   - DeviceMotionEvent (acelerómetro)
+  - Magnetometer - Generic Sensor API (campo magnético, Módulo 5)
+  - AmbientLightSensor (luz ambiental)
   - Speech Synthesis API (TTS)
   - Web Speech Recognition API (STT)
   - Navigator.vibrate (háptica)

@@ -40,11 +40,20 @@ export const useHaptics = () => {
     }
   }, []);
 
+  // Pulso proporcional a la cercanía de una estructura metálica (0-1)
+  const vibrateProximidad = useCallback((intensidad = 0) => {
+    if (navigator.vibrate) {
+      const i = Math.max(0, Math.min(1, intensidad));
+      navigator.vibrate(Math.round(40 + i * 110));
+    }
+  }, []);
+
   return {
     vibrateCardChange,
     vibrateDouble,
     vibratePulse,
     vibrateError,
-    vibrateSuccess
+    vibrateSuccess,
+    vibrateProximidad
   };
 };

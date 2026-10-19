@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, ArrowUp } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowUp, Magnet } from 'lucide-react';
 import { getDirectionToNearestPOI } from '../data/poiData';
 
 /**
@@ -34,7 +34,20 @@ const CARDINALS = [
   { angle: 270, label: 'O' }
 ];
 
-const ARCameraView = ({ alpha, activePOI, poiData, onCardFixed, isWalking, lightMode }) => {
+const ARCameraView = ({
+  alpha,
+  activePOI,
+  poiData,
+  onCardFixed,
+  isWalking,
+  lightMode,
+  magSoportado,
+  magCalibrando,
+  magnitud,
+  lineaBase,
+  hayCampo,
+  intensidad
+}) => {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -200,6 +213,43 @@ const ARCameraView = ({ alpha, activePOI, poiData, onCardFixed, isWalking, light
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-full bg-yellow-400 shadow-[0_0_8px_2px_rgba(250,204,21,0.7)]" />
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-[6px] border-l-transparent border-r-transparent border-t-yellow-400" />
         </div>
+
+        {/* Detector de metales - Módulo 5 (Magnetómetro) */}
+        {magSoportado && (
+          <div className={`mt-2 bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2 border transition-colors ${
+            hayCampo ? 'border-red-500' : 'border-white/20'
+          }`}>
+            <div className="flex items-center justify-between text-xs text-white/90">
+              <span className="flex items-center gap-1 font-bold">
+                <Magnet className={`w-4 h-4 ${hayCampo ? 'text-red-500 animate-pulse' : 'text-blue-400'}`} />
+                Magnetómetro
+              </span>
+              <span className="font-mono font-bold">
+                {magCalibrando
+                  ? 'Calibrando...'
+                  : magnitud != null ? `${magnitud.toFixed(1)} µT` : '-- µT'}
+              </span>
+            </div>
+            <div className="h-2 mt-1.5 bg-white/20 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  hayCampo ? 'bg-red-500' : 'bg-blue-400'
+                }`}
+                style={{ width: `${Math.round((intensidad || 0) * 100)}%` }}
+              />
+            </div>
+            {hayCampo && (
+              <p className="text-red-400 text-xs font-bold animate-pulse mt-1">
+                ¡Estructura metálica detectada!
+              </p>
+            )}
+            {!hayCampo && lineaBase == null && !magCalibrando && (
+              <p className="text-white/60 text-[10px] mt-1">
+                Esperando línea base...
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Flechas guía */}
