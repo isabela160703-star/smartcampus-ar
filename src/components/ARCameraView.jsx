@@ -254,6 +254,24 @@ const ARCameraView = ({
         </div>
       )}
 
+      {/* Siempre visible para diagnóstico (aunque el sensor no esté soportado) */}
+      {!magSoportado && (
+        <div className="absolute top-20 left-2 right-2">
+          <div className="bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2 border border-yellow-400 text-white/90">
+            <div className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-1 font-bold">
+                <Magnet className="w-4 h-4 text-yellow-400" />
+                Magnetómetro
+              </span>
+              <span className="font-mono">NO SOPORTADO</span>
+            </div>
+            <p className="text-[10px] mt-1 text-white/60">
+              Usa el simulador para probar esta función (mueve el slider de Campo Magnético)
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Flechas guía */}
       <div className="absolute top-1/3 left-0 right-0 flex justify-between px-4">
         {direction === 'left' && (
