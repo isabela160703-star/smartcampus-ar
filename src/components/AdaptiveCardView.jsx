@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Thermometer, Users, Wifi, Magnet } from 'lucide-react';
+import { Thermometer, Users, Wifi, Footprints } from 'lucide-react';
 
 /**
  * AdaptiveCardView - Vista principal que muta dinámicamente según contexto
  * - Adaptación por carga cognitiva (isWalking)
  * - Adaptación por iluminación (normal, dark, solar)
- * - Muestra telemetría IoT en tiempo real (valores simulados con fluctuación)
- * - Módulo 5: campo magnético del nodo (µT) si el teléfono tiene magnetómetro
+ * - Muestra telemetría IoT en tiempo real
  */
-const AdaptiveCardView = ({ poi, isWalking, lightMode, magSoportado, magnitud, hayCampo }) => {
+const AdaptiveCardView = ({ poi, isWalking, lightMode, stepCount = 0 }) => {
   const [telemetry, setTelemetry] = useState(poi ? poi.telemetria : null);
 
   // RF3.1: telemetría simulada en tiempo real con fluctuación
@@ -102,7 +101,7 @@ const AdaptiveCardView = ({ poi, isWalking, lightMode, magSoportado, magnitud, h
       </div>
 
       {/* Telemetría IoT */}
-      <div className={`grid ${magSoportado ? 'grid-cols-2' : 'grid-cols-3'} gap-4 pt-4 border-t-2 ${
+      <div className={`grid grid-cols-3 gap-4 pt-4 border-t-2 ${
         lightMode === 'solar' ? 'border-yellow-400' :
         lightMode === 'dark' ? 'border-blue-400' :
         'border-gray-200'
@@ -151,24 +150,16 @@ const AdaptiveCardView = ({ poi, isWalking, lightMode, magSoportado, magnitud, h
             Señal
           </span>
         </div>
+      </div>
 
-        {/* Campo magnético (Módulo 5) */}
-        {magSoportado && magnitud != null && (
-          <div className="flex flex-col items-center">
-            <Magnet className={`w-6 h-6 mb-1 ${
-              hayCampo ? 'text-red-500 animate-pulse' :
-              lightMode === 'solar' ? 'text-yellow-400' :
-              lightMode === 'dark' ? 'text-blue-400' :
-              'text-purple-500'
-            }`} />
-            <span className={`${getTelemetrySize()} font-mono font-bold ${hayCampo ? 'text-red-500' : ''}`}>
-              {magnitud.toFixed(1)} µT
-            </span>
-            <span className={`${getTelemetrySize()} ${getSecondaryTextStyles()}`}>
-              {hayCampo ? '¡Metal!' : 'Campo'}
-            </span>
-          </div>
-        )}
+      {/* Contador de pasos en sesión (extensión RF1.1) */}
+      <div className="mt-3 flex items-center justify-center gap-2">
+        <Footprints className={`w-5 h-5 ${
+          isWalking ? 'text-yellow-400 animate-pulse' : 'text-gray-400'
+        }`} />
+        <span className={`${getTelemetrySize()} font-mono font-bold ${getTextStyles()}`}>
+          {stepCount} pasos en esta sesión
+        </span>
       </div>
 
       {/* Estado y capacidad */}

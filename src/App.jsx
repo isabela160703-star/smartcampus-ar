@@ -1,15 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { poiData, getActivePOI } from './data/poiData';
-import { useHaptics } from './hooks/useHaptics';
-import { useMultimodalVoice } from './hooks/useMultimodalVoice';
-import { useMotionSensors } from './hooks/useMotionSensors';
-import { useAmbientLight } from './hooks/useAmbientLight';
-import { useMagnetometer, detectarMetal, calcularIntensidad } from './hooks/useMagnetometer';
-import StatusHeader from './components/StatusHeader';
-import ARCameraView from './components/ARCameraView';
-import AdaptiveCardView from './components/AdaptiveCardView';
-import ThumbZoneControls from './components/ThumbZoneControls';
-import SensorSimulatorDrawer from './components/SensorSimulatorDrawer';
+import { useStepCounter } from './hooks/useStepCounter';
 
 /**
  * SmartCampus AR - Aplicación principal
@@ -51,20 +40,12 @@ function App() {
   const {
     vibrateCardChange,
     vibrateDouble,
-    vibratePulse,
-    vibrateProximidad
+    vibratePulse
   } = useHaptics();
 
-  // Módulo 5: entorno magnético (sensor Magnetómetro del teléfono)
-  const {
-    soportado: magSoportado,
-    magnitud: magRaw,
-    lineaBase: magBase,
-    calibrando: magCalibrando,
-    estado: magEstado,
-    iniciar: iniciarMagnet,
-    recalibrar: recalibrarMagnet
-  } = useMagnetometer();
+  const { stepCount, addSteps } = useStepCounter({
+    isWalking: simulatorState?.isWalking !== undefined ? simulatorState.isWalking : isWalking
+  });
 
   // Leer tarjeta actual por voz
   const readCurrentCard = useCallback(() => {
@@ -103,7 +84,6 @@ function App() {
     const granted = await requestPermission();
     if (granted) {
       startSensors();
-      iniciarMagnet();
       setIsWelcomeScreen(false);
     } else {
       alert('Los permisos de sensores fueron denegados. La app no podrá detectar tu orientación ni tu movimiento.');
@@ -200,48 +180,19 @@ function App() {
   // retoma el sensor real (si el teléfono lo tiene)
   const handleCloseSimulator = useCallback(() => {
     setIsSimulatorOpen(false);
-    setSimulatorState((prev) =>
-      prev && prev.magnitud !== undefined ? { ...prev, magnitud: undefined } : prev
-    );
   }, []);
 
-  // --- Módulo 5: valores efectivos de campo magnético (real o simulado) ---
-  const simMagnitud = simulatorState?.magnitud;
-  const usarSimuladorMag = simMagnitud !== undefined;
-  const magnitudCampo = usarSimuladorMag
-    ? simMagnitud
-    : (magSoportado ? magRaw : null);
-  const baseCampo = usarSimuladorMag ? 40 : magBase;
-  const magActivo = usarSimuladorMag || magSoportado;
-  const hayCampo = magActivo && detectarMetal(magnitudCampo, baseCampo);
-  const intensidadCampo = calcularIntensidad(magnitudCampo, baseCampo);
+  // Al entrar al modo AR se recalibra la línea base (apuntando a zona libre)
+  // (magnetómetro deshabilitado en UI)
 
-  // Vibración proporcional en modo AR (Geiger: pulsos más rápidos = más cerca)
-  const intensidadRef = useRef(0);
+  // Alerta al llegar al nodo: cuando aparece/entra en rango del POI activo
+  const lastArrivedRef = useRef(null);
   useEffect(() => {
-    intensidadRef.current = intensidadCampo;
-  }, [intensidadCampo]);
-
-  useEffect(() => {
-    if (!isARView || !hayCampo) return;
-    let timeoutId;
-    const vibrar = () => {
-      vibrateProximidad(intensidadRef.current);
-      const delay = Math.round(700 - 550 * intensidadRef.current);
-      timeoutId = setTimeout(vibrar, delay);
-    };
-    vibrar();
-    return () => clearTimeout(timeoutId);
-  }, [isARView, hayCampo, vibrateProximidad]);
-
-  // Al entrar al modo AR: iniciar magnetómetro (por si no arrancó) y recalibrar
-  // la línea base apuntando a una zona libre de metal
-  useEffect(() => {
-    if (isARView) {
-      iniciarMagnet();
-      recalibrarMagnet();
-    }
-  }, [isARView, iniciarMagnet, recalibrarMagnet]);
+    if (!activePOI) return;
+    if (lastArrivedRef.current === activePOI.id) return;
+    lastArrivedRef.current = activePOI.id;
+    vibrateDouble();
+  }, [activePOI, vibrateDouble]);
 
   // Obtener POI actual
   const currentPOI = poiData[currentIndex];
@@ -323,7 +274,7 @@ function App() {
         alpha={orientation.alpha}
         isListening={isListening}
         isSpeaking={isSpeaking}
-        hayCampo={hayCampo}
+        stepCount={stepCount}
       />
 
       <div className="pt-20 pb-32 px-4 max-w-lg mx-auto">
@@ -335,21 +286,14 @@ function App() {
             onCardFixed={handleCardFixed}
             isWalking={isWalking}
             lightMode={lightMode}
-            magSoportado={magActivo}
-            magCalibrando={magCalibrando}
-            magnitud={magnitudCampo}
-            lineaBase={baseCampo}
-            hayCampo={hayCampo}
-            intensidad={intensidadCampo}
+            stepCount={stepCount}
           />
         ) : (
           <AdaptiveCardView
             poi={currentPOI}
             isWalking={isWalking}
             lightMode={lightMode}
-            magSoportado={magActivo}
-            magnitud={magnitudCampo}
-            hayCampo={hayCampo}
+            stepCount={stepCount}
           />
         )}
       </div>
@@ -370,9 +314,7 @@ function App() {
         isOpen={isSimulatorOpen}
         onClose={handleCloseSimulator}
         onSimulatorChange={handleSimulatorChange}
-        magSoportado={magSoportado}
-        magEstado={magEstado}
-        magBase={magBase}
+        onAddSteps={addSteps}
       />
 
       {/* Indicador de lectura por voz activa */}

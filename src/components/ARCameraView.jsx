@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, ArrowUp, Magnet } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowUp, Footprints } from 'lucide-react';
 import { getDirectionToNearestPOI } from '../data/poiData';
 
 /**
@@ -41,12 +41,7 @@ const ARCameraView = ({
   onCardFixed,
   isWalking,
   lightMode,
-  magSoportado,
-  magCalibrando,
-  magnitud,
-  lineaBase,
-  hayCampo,
-  intensidad
+  stepCount = 0
 }) => {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -215,62 +210,13 @@ const ARCameraView = ({
         </div>
       </div>
 
-      {/* Detector de metales - Módulo 5 (Magnetómetro) */}
-      {magSoportado && (
-        <div className="absolute top-20 left-2 right-2">
-          <div className={`bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2 border transition-colors ${
-            hayCampo ? 'border-red-500' : 'border-white/20'
-          }`}>
-            <div className="flex items-center justify-between text-xs text-white/90">
-              <span className="flex items-center gap-1 font-bold">
-                <Magnet className={`w-4 h-4 ${hayCampo ? 'text-red-500 animate-pulse' : 'text-blue-400'}`} />
-                Magnetómetro
-              </span>
-              <span className="font-mono font-bold">
-                {magCalibrando
-                  ? 'Calibrando...'
-                  : magnitud != null ? `${magnitud.toFixed(1)} µT` : '-- µT'}
-              </span>
-            </div>
-            <div className="h-2 mt-1.5 bg-white/20 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-300 ${
-                  hayCampo ? 'bg-red-500' : 'bg-blue-400'
-                }`}
-                style={{ width: `${Math.round((intensidad || 0) * 100)}%` }}
-              />
-            </div>
-            {hayCampo && (
-              <p className="text-red-400 text-xs font-bold animate-pulse mt-1">
-                ¡Estructura metálica detectada!
-              </p>
-            )}
-            {!hayCampo && lineaBase == null && !magCalibrando && (
-              <p className="text-white/60 text-[10px] mt-1">
-                Esperando línea base...
-              </p>
-            )}
-          </div>
+      {/* Pasos en sesión */}
+      <div className="absolute top-20 left-2 right-2 flex justify-center">
+        <div className="bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-2 text-white">
+          <Footprints className="w-4 h-4 text-yellow-400" />
+          <span className="text-xs font-mono font-bold">{stepCount} pasos</span>
         </div>
-      )}
-
-      {/* Siempre visible para diagnóstico (aunque el sensor no esté soportado) */}
-      {!magSoportado && (
-        <div className="absolute top-20 left-2 right-2">
-          <div className="bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2 border border-yellow-400 text-white/90">
-            <div className="flex items-center justify-between text-xs">
-              <span className="flex items-center gap-1 font-bold">
-                <Magnet className="w-4 h-4 text-yellow-400" />
-                Magnetómetro
-              </span>
-              <span className="font-mono">NO SOPORTADO</span>
-            </div>
-            <p className="text-[10px] mt-1 text-white/60">
-              Usa el simulador para probar esta función (mueve el slider de Campo Magnético)
-            </p>
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Flechas guía */}
       <div className="absolute top-1/3 left-0 right-0 flex justify-between px-4">

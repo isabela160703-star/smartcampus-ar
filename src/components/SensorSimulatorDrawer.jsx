@@ -1,56 +1,50 @@
 import React, { useState } from 'react';
-import { X, Sun, Moon, Smartphone, Move } from 'lucide-react';
+import { X, Sun, Moon, Smartphone, Move, Footprints } from 'lucide-react';
 
 /**
  * SensorSimulatorDrawer - Panel flotante para simular sensores en PC
  * - Simular movimiento (Caminando/Quieto, Shake)
  * - Simular nivel de luz (Normal, Oscuro, Sol directo)
  * - Slider de 0° a 360° para rotar la brújula
+ * - Contador de pasos manual
  */
-const SensorSimulatorDrawer = ({ isOpen, onClose, onSimulatorChange, magSoportado, magEstado, magBase }) => {
+const SensorSimulatorDrawer = ({ isOpen, onClose, onSimulatorChange, onAddSteps }) => {
   const [isWalking, setIsWalking] = useState(false);
   const [isShake, setIsShake] = useState(false);
   const [lightMode, setLightMode] = useState('normal');
   const [alpha, setAlpha] = useState(0);
   const [gamma, setGamma] = useState(0);
-  const [magnitud, setMagnitud] = useState(40);
 
   const handleToggleWalking = () => {
     const newValue = !isWalking;
     setIsWalking(newValue);
-    onSimulatorChange({ isWalking: newValue, alpha, gamma, lightMode, isShake, magnitud });
+    onSimulatorChange({ isWalking: newValue, alpha, gamma, lightMode, isShake });
   };
 
   const handleShake = () => {
     setIsShake(true);
-    onSimulatorChange({ isWalking, alpha, gamma, lightMode, isShake: true, magnitud });
+    onSimulatorChange({ isWalking, alpha, gamma, lightMode, isShake: true });
     setTimeout(() => {
       setIsShake(false);
-      onSimulatorChange({ isWalking, alpha, gamma, lightMode, isShake: false, magnitud });
+      onSimulatorChange({ isWalking, alpha, gamma, lightMode, isShake: false });
     }, 500);
   };
 
   const handleLightModeChange = (mode) => {
     setLightMode(mode);
-    onSimulatorChange({ isWalking, alpha, gamma, lightMode: mode, isShake, magnitud });
+    onSimulatorChange({ isWalking, alpha, gamma, lightMode: mode, isShake });
   };
 
   const handleAlphaChange = (e) => {
     const value = parseInt(e.target.value);
     setAlpha(value);
-    onSimulatorChange({ isWalking, alpha: value, gamma, lightMode, isShake, magnitud });
+    onSimulatorChange({ isWalking, alpha: value, gamma, lightMode, isShake });
   };
 
   const handleGammaChange = (e) => {
     const value = parseInt(e.target.value);
     setGamma(value);
-    onSimulatorChange({ isWalking, alpha, gamma: value, lightMode, isShake, magnitud });
-  };
-
-  const handleMagnitudChange = (e) => {
-    const value = parseInt(e.target.value);
-    setMagnitud(value);
-    onSimulatorChange({ isWalking, alpha, gamma, lightMode, isShake, magnitud: value });
+    onSimulatorChange({ isWalking, alpha, gamma: value, lightMode, isShake });
   };
 
   if (!isOpen) return null;
@@ -170,67 +164,35 @@ const SensorSimulatorDrawer = ({ isOpen, onClose, onSimulatorChange, magSoportad
           </div>
         </div>
 
-        {/* Simulación de Inclinación (Gamma) */}
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">
-            Inclinación (Gamma): {gamma}°
-          </h3>
-          <input
-            type="range"
-            min="-90"
-            max="90"
-            value={gamma}
-            onChange={handleGammaChange}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-          />
-          <div className="flex justify-between text-xs text-gray-500 mt-1">
-            <span>-90° (Izq)</span>
-            <span>0°</span>
-            <span>+90° (Der)</span>
-          </div>
+        {/* Botón de cierre */}
           <p className="text-xs text-gray-500 mt-2">
-            Inclina más de 25° para cambiar de tarjeta
+            También cuenta automáticamente mientras el modo "Caminando" esté activo
           </p>
         </div>
-
-        {/* Simulación de Campo Magnético (Módulo 5) */}
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <span className="text-purple-600">🧲</span>
-            Campo Magnético: {magnitud} µT
+            <Footprints className="w-5 h-5 text-yellow-500" />
+            Contador de Pasos (sesión)
           </h3>
-
-          {/* Diagnóstico del magnetómetro real */}
-          <div className={`mb-3 p-2 rounded-lg text-xs ${
-            magSoportado ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-800'
-          }`}>
-            <strong>Sensor real:</strong>{' '}
-            {magSoportado ? 'soportado' : 'NO soportado en este navegador'} ·{' '}
-            <strong>estado:</strong> {magEstado} ·{' '}
-            <strong>base:</strong> {magBase != null ? `${magBase.toFixed(1)} µT` : '—'}
-          </div>
-
-          <input
-            type="range"
-            min="10"
-            max="130"
-            value={magnitud}
-            onChange={handleMagnitudChange}
-            className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${
-              magnitud > 55 ? 'bg-red-500' : 'bg-purple-300'
-            }`}
-          />
-          <div className="flex justify-between text-xs text-gray-500 mt-1">
-            <span>10 µT</span>
-            <span>40 µT (base ambiental)</span>
-            <span>130 µT</span>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => onAddSteps && onAddSteps(1)}
+              className="p-3 rounded-xl font-bold bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors"
+            >
+              +1 paso
+            </button>
+            <button
+              onClick={() => onAddSteps && onAddSteps(10)}
+              className="p-3 rounded-xl font-bold bg-yellow-500 text-black hover:bg-yellow-400 transition-colors"
+            >
+              +10 pasos
+            </button>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            Mueve el slider por debajo/por encima del valor base real para simular detección. Supera base + 15 µT para activar la alerta en el HUD AR.
+            También cuenta automáticamente mientras el modo "Caminando" esté activo
           </p>
         </div>
 
-        {/* Botón de cierre */}
         <button
           onClick={onClose}
           className="w-full p-4 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition-colors"
